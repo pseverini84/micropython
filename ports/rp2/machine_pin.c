@@ -38,6 +38,24 @@
 #include "hardware/structs/iobank0.h"
 #include "hardware/structs/padsbank0.h"
 
+//#define XXX
+#ifdef XXX
+#include "hardware/structs/dma.h"
+#include "hardware/dma.h"
+#include "pio_adc_read.pio.h"
+
+#define ADC_BASE_PIN 2
+#define ADC_BUS_WIDTH 8
+#define ADC_PIO_CLKDIV 1
+#define ADC_SM 0
+#define ADC_BLOCK_SIZE 1024
+
+uint8_t adc_buffer_a[ADC_BLOCK_SIZE];
+uint8_t adc_buffer_b[ADC_BLOCK_SIZE];
+uint8_t *adc_ptr_a;
+uint8_t *adc_ptr_b;
+#endif
+
 #define GPIO_MODE_IN (0)
 #define GPIO_MODE_OUT (1)
 #define GPIO_MODE_OPEN_DRAIN (2)
@@ -80,7 +98,7 @@ typedef struct _machine_pin_irq_obj_t {
 
 STATIC const mp_irq_methods_t machine_pin_irq_methods;
 
-STATIC const machine_pin_obj_t machine_pin_obj[NUM_BANK0_GPIOS] = {
+STATIC const machine_pin_obj_t machine_pin_obj[NUM_BANK0_GPIOS+2] = {
     {{&machine_pin_type}, 0},
     {{&machine_pin_type}, 1},
     {{&machine_pin_type}, 2},
@@ -111,6 +129,8 @@ STATIC const machine_pin_obj_t machine_pin_obj[NUM_BANK0_GPIOS] = {
     {{&machine_pin_type}, 27},
     {{&machine_pin_type}, 28},
     {{&machine_pin_type}, 29},
+    {{&machine_pin_type}, 30},//workaround dma ch0
+    {{&machine_pin_type}, 31},//workaround dma ch2
 };
 
 #if MICROPY_HW_PIN_CYW43_COUNT
@@ -186,11 +206,125 @@ STATIC void gpio_irq(void) {
         }
     }
 }
+#ifdef XXX
+/*
+STATIC void dma_handler(void) {
+    uint32_t intr = dma_hw->ints0;
+    if (intr & 0x00000001) {
+        dma_hw->ints0&=0xFFFFFFFE;
+//        machine_pin_irq_obj_t *irq = MP_STATE_PORT(machine_pin_irq_obj[30]);
+  //      mp_irq_handler(&irq->base);
+    }
+    if (intr & 0x00000004) {
+        dma_hw->ints0&=0xFFFFFFFB;
+      //  machine_pin_irq_obj_t *irq = MP_STATE_PORT(machine_pin_irq_obj[31]);
+    //    mp_irq_handler(&irq->base);
+    }
+}
+*/
+void machine_oscilloscope_init(void){
+    int dma_chan_a, dma_chan_b, dma_chan_c, dma_chan_d;
+    uint offset = pio_add_program(pio0, &pio_adc_read_program);
+    pio_adc_read_program_init(pio0, ADC_SM, offset, ADC_BASE_PIN, ADC_BUS_WIDTH, ADC_PIO_CLKDIV);
+
+    adc_ptr_a = adc_buffer_a;
+    adc_ptr_b = adc_buffer_b;
+
+    // Configure 4 channels to do a ping pong in two differen buffers
+    dma_chan_a = dma_claim_unused_channel(true);
+    dma_chan_b = dma_claim_unused_channel(true);
+    dma_chan_c = dma_claim_unused_channel(true);
+    dma_chan_d = dma_claim_unused_channel(true);
+
+    // Tell the DMA to raise IRQ line 0 when the channel finishes a block
+    //dma_channel_set_irq0_enabled(dma_chan_a, true);
+    //dma_channel_set_irq0_enabled(dma_chan_b, false);
+    //dma_channel_set_irq0_enabled(dma_chan_c, true);
+    //dma_channel_set_irq0_enabled(dma_chan_d, false);
+
+    // Configure the processor to run dma_handler() when DMA IRQ 0 is asserted
+    //irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
+    //irq_set_enabled(DMA_IRQ_0, false);
+
+
+    dma_channel_config c; 
+
+    c= dma_channel_get_default_config(dma_chan_b);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, false);
+    channel_config_set_irq_quiet(&c ,true);
+    channel_config_set_chain_to(&c, dma_chan_c);
+    channel_config_set_high_priority( &c, true);
+    dma_channel_configure(
+        dma_chan_b,
+        &c,
+        &dma_hw->ch[dma_chan_a].write_addr,
+        &adc_ptr_a,   // Pointer from adc_buffer_a
+        1,           // Write the same value many times
+        false                       // Don't start yet
+    );
+
+    c= dma_channel_get_default_config(dma_chan_c);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, true);
+    channel_config_set_dreq(&c, pio_get_dreq(pio0, ADC_SM, false));
+    channel_config_set_irq_quiet(&c ,true);
+    channel_config_set_chain_to(&c, dma_chan_d);
+    channel_config_set_high_priority( &c, true);
+    dma_channel_configure(
+        dma_chan_c,
+        &c,
+        adc_buffer_b,               // Write address 
+        &pio0_hw->rxf,
+        ADC_BLOCK_SIZE/4,           // Write the same value many times
+        false                       // Don't start yet
+    );
+
+    c= dma_channel_get_default_config(dma_chan_d);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, false);
+    channel_config_set_irq_quiet(&c ,true);
+    channel_config_set_chain_to(&c, dma_chan_a);
+    channel_config_set_high_priority( &c, true);
+    dma_channel_configure(
+        dma_chan_d,
+        &c,
+        &dma_hw->ch[dma_chan_c].write_addr,
+        &adc_ptr_b,   // Pointer from adc_buffer_b
+        1,           // Write the same value many times
+        false                       // Don't start yet
+    );
+
+    c= dma_channel_get_default_config(dma_chan_a);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, true);
+    channel_config_set_dreq(&c, pio_get_dreq(pio0, ADC_SM, false));
+    channel_config_set_irq_quiet(&c ,true);
+    channel_config_set_chain_to(&c, dma_chan_b);
+    channel_config_set_high_priority( &c, true);
+    dma_channel_configure(
+        dma_chan_a,
+        &c,
+        adc_buffer_a,               // Write address 
+        &pio0_hw->rxf,
+        ADC_BLOCK_SIZE/4,           // Write the same value many times
+        true                       // Don't start yet
+    );
+
+    // Manually call the handler once, to trigger the first transfer
+    //dma_handler();
+ }
+#endif
 
 void machine_pin_init(void) {
     memset(MP_STATE_PORT(machine_pin_irq_obj), 0, sizeof(MP_STATE_PORT(machine_pin_irq_obj)));
     irq_add_shared_handler(IO_IRQ_BANK0, gpio_irq, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
     irq_set_enabled(IO_IRQ_BANK0, true);
+
     #if MICROPY_HW_PIN_CYW43_COUNT
     for (uint i = 0; i < count_of(cyw43_pin_obj); i++) {
         cyw43_pin_obj[i].id = i;

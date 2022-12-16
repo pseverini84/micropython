@@ -13,6 +13,10 @@ extern const mp_obj_type_t machine_timer_type;
 extern const mp_obj_type_t machine_uart_type;
 extern const mp_obj_type_t machine_wdt_type;
 
+//#ifdef USE_PLL_OSC
+void machine_oscilloscope_init(void);
+//#endif
+
 void machine_pin_init(void);
 void machine_pin_deinit(void);
 void machine_i2s_init0(void);

@@ -1,0 +1,27 @@
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+.program pio_adc_read
+
+.wrap_target
+    in pins, 8
+.wrap
+
+% c-sdk {
+static inline void pio_adc_read_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint pin_count, float freq) {
+    for(uint i=data_pin; i<data_pin+pin_count; i++) {
+        pio_gpio_init(pio, i);
+    }
+    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, pin_count, false);
+    pio_sm_config c = pio_adc_read_program_get_default_config(offset);
+    //sm_config_set_in_pins(&c, data_pin);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    float div = clock_get_hz(clk_sys) / freq;
+    sm_config_set_clkdiv(&c, div);
+    sm_config_set_in_shift(&c, true, true, 32);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}

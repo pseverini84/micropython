@@ -1,0 +1,39 @@
+{
+    "cmake.configureOnOpen": false,
+    "cmake.statusbar.advanced": {
+      "debug" : {
+        "visibility": "default"
+                },   
+      "launch" : {
+        "visibility": "default"
+                 },
+      "build" : {
+        "visibility": "default"
+                 },
+      "buildTarget" : {
+        "visibility": "default"
+                 },
+       },
+      "cortex-debug.openocdPath": "/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/openocd/src/openocd",
+      "files.associations": {
+        "pico.h": "c",
+        "clocks.h": "c",
+        "i2c.h": "c",
+        "stdio.h": "c",
+        "gpio.h": "c",
+        "dma.h": "c",
+        "cyw43.h": "c",
+        "iobank0.h": "c",
+        "modmachine.h": "c",
+        "runtime.h": "c",
+        "pio_adc_read.pio.h": "c",
+        "pio_aps6408l_write.pio.h": "c"
+      },
+    "cortex-debug.registerUseNaturalFormat": false,
+    "cmake.sourceDirectory": "${workspaceFolder}/ports/rp2",
+    "cmake.configureArgs": [
+      "USER_C_MODULES=../../../ulab all"
+    ],
+    "C_Cpp.errorSquiggles": "Disabled"
+  }
+  

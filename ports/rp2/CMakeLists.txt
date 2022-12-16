@@ -106,6 +106,7 @@ set(MICROPY_SOURCE_PORT
     machine_i2c.c
     machine_i2s.c
     machine_pin.c
+    machine_oscilloscope.c
     machine_rtc.c
     machine_spi.c
     machine_timer.c
@@ -185,6 +186,9 @@ set(PICO_SDK_COMPONENTS
     tinyusb_common
     tinyusb_device
 )
+
+pico_generate_pio_header(${MICROPY_TARGET} ${CMAKE_CURRENT_LIST_DIR}/pio_adc_read.pio)
+pico_generate_pio_header(${MICROPY_TARGET} ${CMAKE_CURRENT_LIST_DIR}/pio_aps6408l_write.pio)
 
 if (MICROPY_PY_LWIP)
     target_link_libraries(${MICROPY_TARGET} micropy_lib_lwip)
@@ -340,6 +344,7 @@ target_sources(${MICROPY_TARGET} PRIVATE
     ${MICROPY_SOURCE_PORT}
 )
 
+
 target_link_libraries(${MICROPY_TARGET} micropy_lib_mbedtls)
 
 target_link_libraries(${MICROPY_TARGET} usermod)
@@ -419,3 +424,5 @@ endforeach()
 
 # Include the main MicroPython cmake rules.
 include(${MICROPY_DIR}/py/mkrules.cmake)
+
+
