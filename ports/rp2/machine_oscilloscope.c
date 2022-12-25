@@ -50,8 +50,8 @@
 #define ADC_BLOCK_SIZE 1024
 
 #define APS6408L_WRITE_SM 1
-#define APS6408L_BYTE_SIZE (uint32_t)16*1024*1024//16Mbytes
-#define APS6408L_PIO_FREQ 125000000
+#define APS6408L_BYTE_SIZE (uint32_t)8*1024*1024//8Mbytes
+#define APS6408L_PIO_FREQ 250000000
 #define APS6408L_BASE_PIN 18
 #define APS6408L_CLK_PIN 26
 #define APS6408L_DQS_PIN 27
@@ -84,8 +84,8 @@
 #define APS6408L_COMMAND_REGISTER_WRITE     0XC0
 #define APS6408L_COMMAND_RESET              0XFF
 
-volatile uint8_t adc_buffer_a[ADC_BLOCK_SIZE];
-volatile uint8_t adc_buffer_b[ADC_BLOCK_SIZE];
+volatile uint8_t adc_buffer_a[ADC_BLOCK_SIZE+16];
+volatile uint8_t adc_buffer_b[ADC_BLOCK_SIZE+16];
 volatile uint8_t *adc_ptr_a;
 volatile uint8_t *adc_ptr_b;
 int dma_chan_a;//channel buffer a
@@ -95,31 +95,150 @@ int dma_chan_control_b;//channel b control
 volatile uint32_t mem_address;
 
 
+uint dma_mem;
+dma_channel_config cc;
+uint8_t buff_test[1024+16] __attribute__((aligned(sizeof(uint32_t *))));
+
 STATIC void dma_handler(void) {
     uint32_t intr = dma_hw->ints0;
     if (intr & (0x00000001<<dma_chan_a)) {
         dma_hw->ints0&=~(0x00000001<<dma_chan_a);
-        mem_address=(mem_address+1024)&(APS6408L_BYTE_SIZE-1);
-//        machine_pin_irq_obj_t *irq = MP_STATE_PORT(machine_pin_irq_obj[30]);
-  //      mp_irq_handler(&irq->base);
+        if(mem_address==APS6408L_BYTE_SIZE)
+        {
+            irq_set_enabled(DMA_IRQ_0, false);
+            return;
+        }
+        while(pio_sm_is_tx_fifo_empty(pio0, APS6408L_WRITE_SM)!=true);
+
+        adc_buffer_a[2] = APS6408L_DISORDER_PINS((mem_address&0xFF000000)>>24);
+        adc_buffer_a[3] = APS6408L_DISORDER_PINS((mem_address&0x00FF0000)>>16);
+        adc_buffer_a[4] = APS6408L_DISORDER_PINS((mem_address&0x0000FF00)>>8);
+        adc_buffer_a[5] = APS6408L_DISORDER_PINS((mem_address&0x000000FF));
+        mem_address+=1024;
+
+        gpio_set_dir(APS6408L_DQS_PIN, GPIO_OUT);
+        gpio_put(APS6408L_DQS_PIN,1);
+        gpio_put(APS6408L_CE_PIN,1);
+        gpio_put(APS6408L_DQS_PIN,0);
+        gpio_put(APS6408L_CE_PIN,0);
+        
+        dma_channel_configure(
+        dma_mem,
+        &cc,
+        &pio0_hw->txf[APS6408L_WRITE_SM],              //write
+        adc_buffer_a,               //read 
+        1040/4,                     // Write the same value many times
+        true                       // start
+        );
+        //mem_address=(mem_address+1024)&(APS6408L_BYTE_SIZE-1);
     }
     if (intr & (0x00000001<<dma_chan_b)) {
         dma_hw->ints0&=~(0x00000001<<dma_chan_b);
-        mem_address=(mem_address+1024)&(APS6408L_BYTE_SIZE-1);
-      //  machine_pin_irq_obj_t *irq = MP_STATE_PORT(machine_pin_irq_obj[31]);
-    //    mp_irq_handler(&irq->base);
+        if(mem_address==APS6408L_BYTE_SIZE)
+        {
+            irq_set_enabled(DMA_IRQ_0, false);
+            return;
+        }
+        while(pio_sm_is_tx_fifo_empty(pio0, APS6408L_WRITE_SM)!=true);
+
+        adc_buffer_b[2] = APS6408L_DISORDER_PINS((mem_address&0xFF000000)>>24);
+        adc_buffer_b[3] = APS6408L_DISORDER_PINS((mem_address&0x00FF0000)>>16);
+        adc_buffer_b[4] = APS6408L_DISORDER_PINS((mem_address&0x0000FF00)>>8);
+        adc_buffer_b[5] = APS6408L_DISORDER_PINS((mem_address&0x000000FF));
+        mem_address+=1024;
+
+        gpio_set_dir(APS6408L_DQS_PIN, GPIO_OUT);
+        gpio_put(APS6408L_DQS_PIN,1);
+        gpio_put(APS6408L_CE_PIN,1);
+        gpio_put(APS6408L_DQS_PIN,0);
+        gpio_put(APS6408L_CE_PIN,0);
+        
+        dma_channel_configure(
+        dma_mem,
+        &cc,
+        &pio0_hw->txf[APS6408L_WRITE_SM],              //write
+        adc_buffer_b,               //read 
+        1040/4,                     // Write the same value many times
+        true                       // start
+        );
+        //mem_address=(mem_address+1024)&(APS6408L_BYTE_SIZE-1);
     }
 }
-
 
 void machine_oscilloscope_init(void){
     //init adc read pio
     uint offset = pio_add_program(pio0, &pio_adc_read_program);
     pio_adc_read_program_init(pio0, ADC_SM, offset, ADC_BASE_PIN, ADC_BUS_WIDTH, ADC_PIO_FREQ);
 
+    //Memory setting
+    for (int gpio = APS6408L_BASE_PIN; gpio < APS6408L_BASE_PIN + APS6408L_BUS_WIDTH; gpio++) {
+        gpio_init(gpio);
+        gpio_set_dir(gpio, GPIO_OUT);
+    }
+    gpio_init(APS6408L_CLK_PIN);
+    gpio_set_dir(APS6408L_CLK_PIN, GPIO_OUT);
+    gpio_init(APS6408L_DQS_PIN);
+    gpio_set_dir(APS6408L_DQS_PIN, GPIO_IN);
+    gpio_init(APS6408L_CE_PIN);
+    gpio_set_dir(APS6408L_CE_PIN, GPIO_OUT);
+    gpio_init(APS6408L_RST_PIN);
+    gpio_set_dir(APS6408L_RST_PIN, GPIO_OUT);
+
+    gpio_put(APS6408L_CLK_PIN,0);
+    gpio_put(APS6408L_CE_PIN,1);
+    sleep_us(200);
+    gpio_put(APS6408L_RST_PIN,0);
+    sleep_us(10);
+    gpio_put(APS6408L_RST_PIN,1);
+    sleep_us(10);
+    
+    uint8_t command[8];
+    command[0] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_REGISTER_WRITE);
+    command[1] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_REGISTER_WRITE);
+    command[2] = APS6408L_DISORDER_PINS((APS6408L_REGISTER_MODE_8&0xFF000000)>>24);
+    command[3] = APS6408L_DISORDER_PINS((APS6408L_REGISTER_MODE_8&0x00FF0000)>>16);
+    command[4] = APS6408L_DISORDER_PINS((APS6408L_REGISTER_MODE_8&0x0000FF00)>>8);
+    command[5] = APS6408L_DISORDER_PINS((APS6408L_REGISTER_MODE_8&0x000000FF));
+    command[6] = APS6408L_DISORDER_PINS((APS6408L_1024_WRAP&0x000000FF));//1kbyte wrap
+    command[7] = APS6408L_DISORDER_PINS((APS6408L_1024_WRAP&0x000000FF));
+
+    gpio_put(APS6408L_CE_PIN,0);
+    for(uint8_t x=0;x<8;x+=2){
+        gpio_put_masked(APS6408L_BUS_MASK,(uint32_t)command[x]<<APS6408L_BASE_PIN);
+        gpio_put(APS6408L_CLK_PIN,1);
+        gpio_put_masked(APS6408L_BUS_MASK,(uint32_t)command[x+1]<<APS6408L_BASE_PIN);
+        gpio_put(APS6408L_CLK_PIN,0);
+    }
+    gpio_put(APS6408L_CE_PIN,1);
+
+    offset = pio_add_program(pio0, &pio_aps6408l_write_program);
+    pio_aps6408l_write_program_init(pio0, APS6408L_WRITE_SM, offset, APS6408L_BASE_PIN, APS6408L_BUS_WIDTH, APS6408L_CLK_PIN, APS6408L_PIO_FREQ);
+ 
+    gpio_set_dir(APS6408L_DQS_PIN, GPIO_OUT);
+    gpio_put(APS6408L_DQS_PIN,0);
+    gpio_put(APS6408L_CE_PIN,0);
+
+    dma_mem = dma_claim_unused_channel(true);
+    cc= dma_channel_get_default_config(dma_mem);
+    channel_config_set_transfer_data_size(&cc, DMA_SIZE_32);
+    channel_config_set_read_increment(&cc, true);
+    channel_config_set_write_increment(&cc, false);
+    channel_config_set_dreq(&cc, pio_get_dreq(pio0, APS6408L_WRITE_SM, true));
+    channel_config_set_irq_quiet(&cc ,false);
+
+    adc_buffer_a[0] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
+    adc_buffer_a[1] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
+    adc_buffer_b[0] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
+    adc_buffer_b[1] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
+
+    for(uint16_t x=0;x<1024;x++) buff_test[x+16]=x%256;
+
+    buff_test[0] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
+    buff_test[1] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
+
     //initialize data control pointers
-    adc_ptr_a = adc_buffer_a;
-    adc_ptr_b = adc_buffer_b;
+    adc_ptr_a = &adc_buffer_a[16];
+    adc_ptr_b = &adc_buffer_b[16];
     mem_address=0;
 
     // Claim 4 dma channels to dos the chain
@@ -192,7 +311,7 @@ void machine_oscilloscope_init(void){
     dma_channel_configure(
         dma_chan_b,
         &c,
-        adc_buffer_b,               // Write address 
+        &adc_buffer_b[16],               // Write address 
         &pio0_hw->rxf[ADC_SM],
         ADC_BLOCK_SIZE/4,           // Write the same value many times
         false                       // Don't start yet
@@ -225,13 +344,13 @@ void machine_oscilloscope_init(void){
     dma_channel_configure(
         dma_chan_a,
         &c,
-        adc_buffer_a,               // Write address 
+        &adc_buffer_a[16],               // Write address 
         &pio0_hw->rxf[ADC_SM],
         ADC_BLOCK_SIZE/4,           // Write the same value many times
         true                       // trigger now
     );
 
-    //Memory setting
+ /*   //Memory setting
     for (int gpio = APS6408L_BASE_PIN; gpio < APS6408L_BASE_PIN + APS6408L_BUS_WIDTH; gpio++) {
         gpio_init(gpio);
         gpio_set_dir(gpio, GPIO_OUT);
@@ -280,8 +399,16 @@ void machine_oscilloscope_init(void){
     gpio_put(APS6408L_DQS_PIN,0);
     gpio_put(APS6408L_CE_PIN,0);
 
-    uint8_t buff_test[1024+14] __attribute__((aligned(sizeof(uint32_t *))));
-    for(uint16_t x=0;x<1024;x++) buff_test[x+14]=x%256;
+    uint8_t buff_test[1024+16] __attribute__((aligned(sizeof(uint32_t *))));
+    for(uint16_t x=0;x<1024+16;x++) buff_test[x]=0;
+    //for(uint16_t x=0;x<1024;x++) buff_test[x+14]=x%256;
+    buff_test[16]=1;
+    buff_test[17]=2;
+    buff_test[18]=3;
+    buff_test[19]=4;
+    buff_test[1023+15]=9;
+    buff_test[1023+16]=10;
+ 
     buff_test[0] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
     buff_test[1] = APS6408L_DISORDER_PINS(APS6408L_COMMAND_SYNC_WRITE_BURST);
     buff_test[2] = APS6408L_DISORDER_PINS((1024&0xFF000000)>>24);
@@ -295,7 +422,7 @@ void machine_oscilloscope_init(void){
     uint dma_mem;
     dma_mem = dma_claim_unused_channel(true);
     c= dma_channel_get_default_config(dma_mem);
-    channel_config_set_transfer_data_size(&c, DMA_SIZE_16);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
     channel_config_set_read_increment(&c, true);
     channel_config_set_write_increment(&c, false);
     channel_config_set_dreq(&c, pio_get_dreq(pio0, APS6408L_WRITE_SM, true));
@@ -307,11 +434,12 @@ void machine_oscilloscope_init(void){
         &c,
         &pio0_hw->txf[APS6408L_WRITE_SM],              //write
         buff_test,               //read 
-        1038/2,                     // Write the same value many times
+        1040/4,                     // Write the same value many times
         true                       // start
     );
     while(pio_sm_is_tx_fifo_empty(pio0, APS6408L_WRITE_SM)!=true);
 
+    gpio_put(APS6408L_DQS_PIN,1);
     gpio_put(APS6408L_CE_PIN,1);
     gpio_set_dir(APS6408L_DQS_PIN, GPIO_IN);
 
@@ -330,12 +458,12 @@ void machine_oscilloscope_init(void){
         &c,
         &pio0_hw->txf[APS6408L_WRITE_SM],              //write
         buff_test,               //read 
-        1038/2,                     // Write the same value many times
+        1040/4,                     // Write the same value many times
         true                       // start
     );
     while(pio_sm_is_tx_fifo_empty(pio0, APS6408L_WRITE_SM)!=true);
 
     gpio_put(APS6408L_CE_PIN,1);
     gpio_set_dir(APS6408L_DQS_PIN, GPIO_IN);
-
+*/
  }
