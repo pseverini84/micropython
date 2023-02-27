@@ -1,1 +1,1 @@
-[{"node":"DMA","expanded":true,"format":0,"pinned":false}]
+[{"node":"IO_BANK0.INTR0","expanded":true,"format":0},{"node":"IO_QSPI","expanded":true,"format":0,"pinned":false},{"node":"PIO0.SM0_ADDR","expanded":true,"format":0},{"node":"PIO0.SM1_ADDR","expanded":true,"format":0}]

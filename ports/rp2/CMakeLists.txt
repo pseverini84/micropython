@@ -107,6 +107,8 @@ set(MICROPY_SOURCE_PORT
     machine_i2s.c
     machine_pin.c
     machine_oscilloscope.c
+    ram_fat_mock.c
+    aps6408l.c
     machine_rtc.c
     machine_spi.c
     machine_timer.c
@@ -137,6 +139,8 @@ set(MICROPY_SOURCE_QSTR
     ${PROJECT_SOURCE_DIR}/machine_i2c.c
     ${PROJECT_SOURCE_DIR}/machine_i2s.c
     ${PROJECT_SOURCE_DIR}/machine_pin.c
+    ${PROJECT_SOURCE_DIR}/machine_oscilloscope.c
+    ${PROJECT_SOURCE_DIR}/aps6408l.c
     ${PROJECT_SOURCE_DIR}/machine_rtc.c
     ${PROJECT_SOURCE_DIR}/machine_spi.c
     ${PROJECT_SOURCE_DIR}/machine_timer.c

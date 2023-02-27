@@ -14,7 +14,7 @@
         "visibility": "default"
                  },
        },
-      "cortex-debug.openocdPath": "/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/openocd/src/openocd",
+      "cortex-debug.openocdPath": "${workspaceFolder}/../openocd/src/openocd",
       "files.associations": {
         "pico.h": "c",
         "clocks.h": "c",
@@ -27,13 +27,30 @@
         "modmachine.h": "c",
         "runtime.h": "c",
         "pio_adc_read.pio.h": "c",
-        "pio_aps6408l_write.pio.h": "c"
+        "pio_aps6408l_write.pio.h": "c",
+        "padsbank0.h": "c",
+        "binary_info.h": "c",
+        "flash.h": "c",
+        "string.h": "c",
+        "aps6408l.h": "c",
+        "time.h": "c",
+        "ram_fat_mock.h": "c",
+        "pio.h": "c",
+        "virtpin.h": "c",
+        "mphal.h": "c",
+        "irq.h": "c",
+        "mpirq.h": "c",
+        "xosc.h": "c",
+        "mpstate.h": "c",
+        "platform_defs.h": "c",
+        "address_mapped.h": "c",
+        "pio_instructions.h": "c"
       },
     "cortex-debug.registerUseNaturalFormat": false,
     "cmake.sourceDirectory": "${workspaceFolder}/ports/rp2",
     "cmake.configureArgs": [
-      "USER_C_MODULES=../../../ulab all"
+      "-DUSER_C_MODULES=${workspaceFolder}/../ulab/code/micropython.cmake",
     ],
-    "C_Cpp.errorSquiggles": "Disabled"
+    "C_Cpp.errorSquiggles": "enabled"
   }
   

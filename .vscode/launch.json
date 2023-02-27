@@ -23,7 +23,8 @@
                 "break main",
                 "continue"
             ],
-            "searchDir": ["/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/openocd/tcl"],
+            "searchDir": ["${workspaceFolder}/../openocd/tcl"],
+            //"showDevDebugOutput": "vscode",
         }
     ]
 }
