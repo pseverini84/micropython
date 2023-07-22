@@ -40,7 +40,12 @@
 // memory system, runtime and virtual machine.  The state is a global
 // variable, but in the future it is hoped that the state can become local.
 
+#if MICROPY_PY_SYS_ATTR_DELEGATION
+// Must be kept in sync with sys_mutable_keys in modsys.c.
 enum {
+    #if MICROPY_PY_SYS_PATH
+    MP_SYS_MUTABLE_PATH,
+    #endif
     #if MICROPY_PY_SYS_PS1_PS2
     MP_SYS_MUTABLE_PS1,
     MP_SYS_MUTABLE_PS2,
@@ -50,6 +55,7 @@ enum {
     #endif
     MP_SYS_MUTABLE_NUM,
 };
+#endif // MICROPY_PY_SYS_ATTR_DELEGATION
 
 // This structure contains dynamic configuration for the compiler.
 #if MICROPY_DYNAMIC_COMPILER
@@ -71,12 +77,11 @@ typedef struct _mp_sched_item_t {
     mp_obj_t arg;
 } mp_sched_item_t;
 
-// This structure hold information about the memory allocation system.
-typedef struct _mp_state_mem_t {
-    #if MICROPY_MEM_STATS
-    size_t total_bytes_allocated;
-    size_t current_bytes_allocated;
-    size_t peak_bytes_allocated;
+// This structure holds information about a single contiguous area of
+// memory reserved for the memory manager.
+typedef struct _mp_state_mem_area_t {
+    #if MICROPY_GC_SPLIT_HEAP
+    struct _mp_state_mem_area_t *next;
     #endif
 
     byte *gc_alloc_table_start;
@@ -87,8 +92,25 @@ typedef struct _mp_state_mem_t {
     byte *gc_pool_start;
     byte *gc_pool_end;
 
+    size_t gc_last_free_atb_index;
+} mp_state_mem_area_t;
+
+// This structure hold information about the memory allocation system.
+typedef struct _mp_state_mem_t {
+    #if MICROPY_MEM_STATS
+    size_t total_bytes_allocated;
+    size_t current_bytes_allocated;
+    size_t peak_bytes_allocated;
+    #endif
+
+    mp_state_mem_area_t area;
+
     int gc_stack_overflow;
-    MICROPY_GC_STACK_ENTRY_TYPE gc_stack[MICROPY_ALLOC_GC_STACK_SIZE];
+    MICROPY_GC_STACK_ENTRY_TYPE gc_block_stack[MICROPY_ALLOC_GC_STACK_SIZE];
+    #if MICROPY_GC_SPLIT_HEAP
+    // Array that tracks the area for each block on gc_block_stack.
+    mp_state_mem_area_t *gc_area_stack[MICROPY_ALLOC_GC_STACK_SIZE];
+    #endif
 
     // This variable controls auto garbage collection.  If set to 0 then the
     // GC won't automatically run when gc_alloc can't find enough blocks.  But
@@ -100,7 +122,9 @@ typedef struct _mp_state_mem_t {
     size_t gc_alloc_threshold;
     #endif
 
-    size_t gc_last_free_atb_index;
+    #if MICROPY_GC_SPLIT_HEAP
+    mp_state_mem_area_t *gc_last_free_area;
+    #endif
 
     #if MICROPY_PY_GC_COLLECT_RETVAL
     size_t gc_collected;
@@ -208,6 +232,11 @@ typedef struct _mp_state_vm_t {
     uint8_t sched_idx;
     #endif
 
+    #if MICROPY_ENABLE_VM_ABORT
+    bool vm_abort;
+    nlr_buf_t *nlr_abort;
+    #endif
+
     #if MICROPY_PY_THREAD_GIL
     // This is a global mutex used to make the VM/runtime thread-safe.
     mp_thread_mutex_t gil_mutex;
@@ -248,6 +277,7 @@ typedef struct _mp_state_thread_t {
     mp_obj_dict_t *dict_globals;
 
     nlr_buf_t *nlr_top;
+    nlr_jump_callback_node_t *nlr_jump_callback_top;
 
     // pending exception object (MP_OBJ_NULL if not pending)
     volatile mp_obj_t mp_pending_exception;
@@ -279,8 +309,10 @@ extern mp_state_ctx_t mp_state_ctx;
 #if MICROPY_PY_THREAD
 extern mp_state_thread_t *mp_thread_get_state(void);
 #define MP_STATE_THREAD(x) (mp_thread_get_state()->x)
+#define mp_thread_is_main_thread() (mp_thread_get_state() == &mp_state_ctx.thread)
 #else
 #define MP_STATE_THREAD(x)  MP_STATE_MAIN_THREAD(x)
+#define mp_thread_is_main_thread() (true)
 #endif
 
 #endif // MICROPY_INCLUDED_PY_MPSTATE_H

@@ -79,6 +79,7 @@ STATIC void mp_help_print_modules(void) {
     mp_obj_t list = mp_obj_new_list(0, NULL);
 
     mp_help_add_from_map(list, &mp_builtin_module_map);
+    mp_help_add_from_map(list, &mp_builtin_extensible_module_map);
 
     #if MICROPY_MODULE_FROZEN
     extern const char mp_frozen_names[];
@@ -143,19 +144,14 @@ STATIC void mp_help_print_obj(const mp_obj_t obj) {
         if (type == &mp_type_type) {
             type = MP_OBJ_TO_PTR(obj);
         }
-        if (type->locals_dict != NULL) {
-            map = &type->locals_dict->map;
+        if (MP_OBJ_TYPE_HAS_SLOT(type, locals_dict)) {
+            map = &MP_OBJ_TYPE_GET_SLOT(type, locals_dict)->map;
         }
     }
     if (map != NULL) {
         for (uint i = 0; i < map->alloc; i++) {
             mp_obj_t key = map->table[i].key;
-            if (key != MP_OBJ_NULL
-                #if MICROPY_MODULE_ATTR_DELEGATION
-                // MP_MODULE_ATTR_DELEGATION_ENTRY entries have MP_QSTRnull as qstr key.
-                && key != MP_OBJ_NEW_QSTR(MP_QSTRnull)
-                #endif
-                ) {
+            if (key != MP_OBJ_NULL) {
                 mp_help_print_info_about_object(key, map->table[i].value);
             }
         }

@@ -310,24 +310,44 @@ STATIC mp_obj_t aps6408l_ioctl(mp_obj_t self_in, mp_obj_t cmd_in, mp_obj_t arg_i
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(aps6408l_ioctl_obj, aps6408l_ioctl);
 
 STATIC const mp_rom_map_elem_t aps6408l_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR__name__),   MP_ROM_QSTR(MP_QSTR_aps6408l) },
     { MP_ROM_QSTR(MP_QSTR_readblocks), MP_ROM_PTR(&aps6408l_readblocks_obj) },
     { MP_ROM_QSTR(MP_QSTR_writeblocks), MP_ROM_PTR(&aps6408l_writeblocks_obj) },
     { MP_ROM_QSTR(MP_QSTR_ioctl), MP_ROM_PTR(&aps6408l_ioctl_obj) },
 };
 STATIC MP_DEFINE_CONST_DICT(aps6408l_locals_dict, aps6408l_locals_dict_table);
 
+// This defines the type(Timer) object.
+MP_DEFINE_CONST_OBJ_TYPE(
+    aps6408l_type,
+    MP_QSTR_ram,
+    MP_TYPE_FLAG_NONE,
+    make_new, aps6408l_make_new,
+    locals_dict, &aps6408l_locals_dict
+    );
+
+/*
 const mp_obj_type_t aps6408l_type = {
     { &mp_type_type },
     .name = MP_QSTR_aps6408l,
     .make_new = aps6408l_make_new,
     .locals_dict = (mp_obj_dict_t *)&aps6408l_locals_dict,
 };
+*/
+// Define all attributes of the module.
+// Table entries are key/value pairs of the attribute name (a string)
+// and the MicroPython object reference.
+// All identifiers and strings are written as MP_QSTR_xxx and will be
+// optimized to word-sized integers by the build system (interned strings).
+STATIC const mp_rom_map_elem_t aps6408l_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR__name__),   MP_ROM_QSTR(MP_QSTR_aps6408l) },
+    { MP_ROM_QSTR(MP_QSTR_ram),    MP_ROM_PTR(&aps6408l_type) },
+};
+STATIC MP_DEFINE_CONST_DICT(aps6408l_module_global, aps6408l_globals_table);
 
 // Define module object.
 const mp_obj_module_t user_aps6408l = {
-    .base = { &aps6408l_type },
-    .globals = (mp_obj_dict_t *)&aps6408l_locals_dict,
+    .base = { &mp_type_module/*aps6408l_type*/ },
+    .globals = (mp_obj_dict_t *)&aps6408l_module_global,
 };
 
 // Register the module to make it available in Python.

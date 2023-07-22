@@ -1,0 +1,1 @@
+/usr/bin/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -Os -DNDEBUG -Wl,--build-id=none --specs=nosys.specs -nostartfiles -Wl,--script=/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/micropython/lib/pico-sdk/src/rp2_common/boot_stage2/boot_stage2.ld -Wl,-Map=bs2_default.elf.map CMakeFiles/bs2_default.dir/compile_time_choice.S.obj  -o bs2_default.elf 

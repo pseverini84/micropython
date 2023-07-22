@@ -64,7 +64,13 @@ MP_DECLARE_CONST_FUN_OBJ_KW(mp_builtin_open_obj);
 
 #endif
 
+// A port can provide its own import handler by defining mp_builtin___import__.
+#ifndef mp_builtin___import__
+#define mp_builtin___import__ mp_builtin___import___default
+#endif
 mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args);
+mp_obj_t mp_builtin___import___default(size_t n_args, const mp_obj_t *args);
+
 mp_obj_t mp_micropython_mem_info(size_t n_args, const mp_obj_t *args);
 
 MP_DECLARE_CONST_FUN_OBJ_VAR(mp_builtin___build_class___obj);
@@ -127,7 +133,7 @@ extern const mp_obj_module_t mp_module_builtins;
 extern const mp_obj_module_t mp_module_sys;
 
 // Modules needed by the parser when MICROPY_COMP_MODULE_CONST is enabled.
-extern const mp_obj_module_t mp_module_uerrno;
+extern const mp_obj_module_t mp_module_errno;
 extern const mp_obj_module_t mp_module_uctypes;
 extern const mp_obj_module_t mp_module_machine;
 

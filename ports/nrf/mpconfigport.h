@@ -80,8 +80,8 @@
 #define MICROPY_PY_SYS_STDFILES            (CORE_FEAT)
 #endif
 
-#ifndef MICROPY_PY_UBINASCII
-#define MICROPY_PY_UBINASCII               (CORE_FEAT)
+#ifndef MICROPY_PY_BINASCII
+#define MICROPY_PY_BINASCII                (CORE_FEAT)
 #endif
 
 #ifndef MICROPY_PY_NRF
@@ -133,31 +133,14 @@
     #define MICROPY_FATFS_MAX_SS       (4096)
 #endif
 
-#if MICROPY_VFS
-// TODO these should be generic, not bound to a particular FS implementation
-#if MICROPY_VFS_FAT
-#define mp_type_fileio mp_type_vfs_fat_fileio
-#define mp_type_textio mp_type_vfs_fat_textio
-#elif MICROPY_VFS_LFS1
-#define mp_type_fileio mp_type_vfs_lfs1_fileio
-#define mp_type_textio mp_type_vfs_lfs1_textio
-#elif MICROPY_VFS_LFS2
-#define mp_type_fileio mp_type_vfs_lfs2_fileio
-#define mp_type_textio mp_type_vfs_lfs2_textio
-#endif
-#else // !MICROPY_VFS_FAT
-#define mp_type_fileio fatfs_type_fileio
-#define mp_type_textio fatfs_type_textio
-#endif
-
-// Use port specific uos module rather than extmod variant.
-#define MICROPY_PY_UOS              (0)
+// Use port specific os module rather than extmod variant.
+#define MICROPY_PY_OS               (0)
 
 #define MICROPY_STREAMS_NON_BLOCK   (1)
-#define MICROPY_MODULE_WEAK_LINKS   (1)
 #define MICROPY_CAN_OVERRIDE_BUILTINS (1)
 #define MICROPY_USE_INTERNAL_ERRNO  (1)
 #if MICROPY_HW_USB_CDC_1200BPS_TOUCH
+#define MICROPY_HW_ENABLE_USBDEV    (1)
 #define MICROPY_ENABLE_SCHEDULER    (1)
 #define MICROPY_SCHEDULER_STATIC_NODES (1)
 #endif
@@ -172,10 +155,9 @@
 #define MICROPY_MODULE_BUILTIN_INIT (1)
 #define MICROPY_PY_MICROPYTHON_MEM_INFO (1)
 #define MICROPY_PY_SYS_MAXSIZE      (1)
-#define MICROPY_PY_IO_FILEIO        (MICROPY_VFS_FAT || MICROPY_VFS_LFS1 || MICROPY_VFS_LFS2)
-#define MICROPY_PY_URANDOM          (1)
-#define MICROPY_PY_URANDOM_EXTRA_FUNCS (1)
-#define MICROPY_PY_UTIME_MP_HAL     (1)
+#define MICROPY_PY_RANDOM           (1)
+#define MICROPY_PY_RANDOM_EXTRA_FUNCS (1)
+#define MICROPY_PY_TIME             (1)
 #define MICROPY_PY_MACHINE          (1)
 #define MICROPY_PY_MACHINE_PULSE    (0)
 #define MICROPY_PY_MACHINE_SOFTI2C  (MICROPY_PY_MACHINE_I2C)
@@ -214,8 +196,16 @@
 #define MICROPY_PY_MACHINE_SOFT_PWM (0)
 #endif
 
-#ifndef MICROPY_PY_MACHINE_TIMER
-#define MICROPY_PY_MACHINE_TIMER    (0)
+#define MICROPY_PY_MACHINE_PWM_DUTY (1)
+
+#if MICROPY_PY_MACHINE_HW_PWM
+#define MICROPY_PY_MACHINE_PWM_INCLUDEFILE "ports/nrf/modules/machine/pwm.c"
+#elif MICROPY_PY_MACHINE_SOFT_PWM
+#define MICROPY_PY_MACHINE_PWM_INCLUDEFILE "ports/nrf/modules/machine/soft_pwm.c"
+#endif
+
+#ifndef MICROPY_PY_MACHINE_TIMER_NRF
+#define MICROPY_PY_MACHINE_TIMER_NRF (1)
 #endif
 
 #ifndef MICROPY_PY_MACHINE_RTCOUNTER
@@ -294,6 +284,11 @@
 typedef int mp_int_t; // must be pointer size
 typedef unsigned int mp_uint_t; // must be pointer size
 typedef long mp_off_t;
+
+#if MICROPY_HW_ENABLE_RNG
+#define MICROPY_PY_RANDOM_SEED_INIT_FUNC (rng_generate_random_word())
+long unsigned int rng_generate_random_word(void);
+#endif
 
 #if BOARD_SPECIFIC_MODULES
 #include "boardmodules.h"

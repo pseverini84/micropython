@@ -24,15 +24,38 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <errno.h> // for declaration of global errno variable
-#include <fcntl.h>
-
 #include "py/runtime.h"
 #include "py/stream.h"
 
 #if MICROPY_PY_BTREE
+
+#include <stdio.h>
+#include <errno.h> // for declaration of global errno variable
+#include <fcntl.h>
+
+// Undefine queue macros that will be defined in berkeley-db-1.xx headers
+// below, in case they clash with system ones defined in headers above.
+#undef LIST_HEAD
+#undef LIST_ENTRY
+#undef LIST_INIT
+#undef LIST_INSERT_AFTER
+#undef LIST_INSERT_HEAD
+#undef LIST_REMOVE
+#undef TAILQ_HEAD
+#undef TAILQ_ENTRY
+#undef TAILQ_INIT
+#undef TAILQ_INSERT_HEAD
+#undef TAILQ_INSERT_TAIL
+#undef TAILQ_INSERT_AFTER
+#undef TAILQ_REMOVE
+#undef CIRCLEQ_HEAD
+#undef CIRCLEQ_ENTRY
+#undef CIRCLEQ_INIT
+#undef CIRCLEQ_INSERT_AFTER
+#undef CIRCLEQ_INSERT_BEFORE
+#undef CIRCLEQ_INSERT_HEAD
+#undef CIRCLEQ_INSERT_TAIL
+#undef CIRCLEQ_REMOVE
 
 #include <db.h>
 #include <../../btree/btree.h>
@@ -67,7 +90,7 @@ void __dbpanic(DB *db) {
 }
 
 STATIC mp_obj_btree_t *btree_new(DB *db, mp_obj_t stream) {
-    mp_obj_btree_t *o = mp_obj_malloc(mp_obj_btree_t, &btree_type);
+    mp_obj_btree_t *o = mp_obj_malloc(mp_obj_btree_t, (mp_obj_type_t *)&btree_type);
     o->stream = stream;
     o->db = db;
     o->start_key = mp_const_none;
@@ -319,17 +342,22 @@ STATIC const mp_rom_map_elem_t btree_locals_dict_table[] = {
 
 STATIC MP_DEFINE_CONST_DICT(btree_locals_dict, btree_locals_dict_table);
 
-STATIC const mp_obj_type_t btree_type = {
-    { &mp_type_type },
-    // Save on qstr's, reuse same as for module
-    .name = MP_QSTR_btree,
-    .print = btree_print,
+STATIC const mp_getiter_iternext_custom_t btree_getiter_iternext = {
     .getiter = btree_getiter,
     .iternext = btree_iternext,
-    .binary_op = btree_binary_op,
-    .subscr = btree_subscr,
-    .locals_dict = (void *)&btree_locals_dict,
 };
+
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    btree_type,
+    MP_QSTR_btree,
+    MP_TYPE_FLAG_ITER_IS_CUSTOM,
+    // Save on qstr's, reuse same as for module
+    print, btree_print,
+    iter, &btree_getiter_iternext,
+    binary_op, btree_binary_op,
+    subscr, btree_subscr,
+    locals_dict, &btree_locals_dict
+    );
 #endif
 
 STATIC const FILEVTABLE btree_stream_fvtable = {

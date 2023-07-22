@@ -1,0 +1,5 @@
+/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/micropython/ports/rp2/PICO/elf2uf2/CMakeFiles/rebuild_cache.dir
+/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/micropython/ports/rp2/PICO/elf2uf2/CMakeFiles/edit_cache.dir
+/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/micropython/ports/rp2/PICO/elf2uf2/CMakeFiles/elf2uf2.dir
+/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/micropython/ports/rp2/PICO/elf2uf2/boot_uf2_headers/CMakeFiles/rebuild_cache.dir
+/media/pablo/4e8dc60d-c9b4-4363-bbb9-4a464511bec7/RPPico-SDK/micropython/ports/rp2/PICO/elf2uf2/boot_uf2_headers/CMakeFiles/edit_cache.dir

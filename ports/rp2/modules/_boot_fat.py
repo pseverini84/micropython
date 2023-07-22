@@ -16,7 +16,7 @@ except:
     vfs = os.VfsFat(bdev)
 os.mount(vfs, "/")
 
-bdev=aps6408l
+bdev=aps6408l.ram()
 try:
     vfs = os.VfsFat(bdev)
 except:
